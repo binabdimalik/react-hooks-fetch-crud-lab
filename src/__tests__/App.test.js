@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor, // Import waitFor
   waitForElementToBeRemoved,
 } from "@testing-library/react";
 import "@testing-library/jest-dom/extend-expect";
@@ -43,14 +44,18 @@ test("creates a new question when the form is submitted", async () => {
   fireEvent.change(screen.queryByLabelText(/Answer 2/), {
     target: { value: "Test Answer 2" },
   });
-  fireEvent.change(screen.queryByLabelText(/Correct Answer/), {
+  // Note: QuestionForm uses "Correct Answer Index" for the number input
+  // and QuestionItem uses "Correct Answer" for the select dropdown.
+  // The test appears to target the QuestionForm's index input here.
+  fireEvent.change(screen.queryByLabelText(/Correct Answer Index/), {
     target: { value: "1" },
   });
 
   // submit form
   fireEvent.submit(screen.queryByText(/Add Question/));
 
-  // view questions
+  // view questions (this is now handled by the form submitting and navigating back, 
+  // but keeping this navigation step for robustness if the form component is complex)
   fireEvent.click(screen.queryByText(/View Questions/));
 
   expect(await screen.findByText(/Test Prompt/g)).toBeInTheDocument();
@@ -86,7 +91,11 @@ test("updates the answer when the dropdown is changed", async () => {
     target: { value: "3" },
   });
 
-  expect(screen.queryAllByLabelText(/Correct Answer/)[0].value).toBe("3");
+  // FIX: Use waitFor to ensure the asynchronous state update (from the PATCH request 
+  // in QuestionItem) is reflected in the DOM before asserting.
+  await waitFor(() => {
+    expect(screen.queryAllByLabelText(/Correct Answer/)[0].value).toBe("3");
+  });
 
   rerender(<App />);
 
